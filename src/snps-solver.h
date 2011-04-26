@@ -36,6 +36,7 @@ typedef struct {
 
 typedef struct {
     unsigned char **boards;
+    unsigned char *moves;
     unsigned size;
     unsigned length;
 } snps_route_t;

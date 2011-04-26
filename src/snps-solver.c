@@ -54,7 +54,7 @@ static gboolean snps_state_equals(gconstpointer a, gconstpointer b);
 static gint snps_state_compare(gconstpointer a, gconstpointer b,
     gpointer user_data);
 static void snps_state_free(gpointer data);
-static snps_route_t *snps_route_new(snps_state_t *end);
+static snps_route_t *snps_route_new(snps_state_t *end, snps_game_t *game);
 
 extern snps_game_t *snps_game_new(unsigned rows, unsigned columns,
     const unsigned char *from, const unsigned char *to)
@@ -128,7 +128,7 @@ extern snps_route_t *snps_solve_optimal(snps_game_t *game, snps_stats_f stats)
                 stats(++i, current->level);
 
             if (memcmp(current->board, game->to, game->size) == 0) {
-                snps_route_t *route = snps_route_new(current);
+                snps_route_t *route = snps_route_new(current, game);
 
                 g_list_free(level);
                 g_list_free(next_level);
@@ -168,7 +168,7 @@ extern snps_route_t *snps_solve_fast(snps_game_t *game, snps_stats_f stats)
             stats(++i, current->level);
 
         if (memcmp(current->board, game->to, game->size) == 0) {
-            snps_route_t *route = snps_route_new(current);
+            snps_route_t *route = snps_route_new(current, game);
 
             g_sequence_free(todo);
             g_hash_table_destroy(state_set);
@@ -188,6 +188,7 @@ extern void snps_route_free(snps_route_t *route)
     g_slice_free(snps_route_t, route);
 }
 
+/* create a first state using the start board */
 static snps_state_t *snps_game_start(snps_game_t *game, GHashTable *state_set)
 {
     snps_state_t *start = g_slice_new(snps_state_t);
@@ -202,6 +203,7 @@ static snps_state_t *snps_game_start(snps_game_t *game, GHashTable *state_set)
     return start;
 }
 
+/* add all possible following states to a list */
 static void snps_state_children_list(snps_state_t *parent,
     snps_game_t *game, GHashTable *state_set, GList **list)
 {
@@ -218,6 +220,7 @@ static void snps_state_children_list(snps_state_t *parent,
             *list = g_list_prepend(*list, children[i]);
 }
 
+/* add all possible following states to a sequence */
 static void snps_state_children_sequence(snps_state_t *parent,
     snps_game_t *game, GHashTable *state_set, GSequence *todo)
 {
@@ -303,7 +306,7 @@ static snps_state_t *snps_state_move(snps_state_t *parent, snps_game_t *game,
 /* a simple heuristic to rate a state */
 static unsigned snps_state_score(snps_state_t *state, snps_game_t *game)
 {
-    unsigned score = state->level;
+    unsigned score = 0;
     unsigned i_current, diff_columns, diff_rows;
 
     for (int i = 0; i < game->size; ++i) {
@@ -321,8 +324,8 @@ static unsigned snps_state_score(snps_state_t *state, snps_game_t *game)
         
         score += (diff_rows + diff_columns);
     }
-    
-    return score;
+
+    return (score * 2) + state->level;
 }
 
 /* creates a pseudo hash of a board using the SDBM algorithm */
@@ -380,7 +383,7 @@ static void snps_state_free(gpointer data)
 }
 
 /* create a new route by reversing the final state */
-static snps_route_t *snps_route_new(snps_state_t *end)
+static snps_route_t *snps_route_new(snps_state_t *end, snps_game_t *game)
 {
     GList *list = NULL;
     for (snps_state_t *state = end; state != NULL; state = state->parent)
@@ -390,11 +393,42 @@ static snps_route_t *snps_route_new(snps_state_t *end)
     route->length = g_list_length(list);
     route->size = end->size;
     route->boards = g_slice_alloc(route->length * sizeof(char *));
+    route->moves = g_slice_alloc(route->length);
+    route->moves[route->length - 1] = '\0';
 
-    int i = 0;
-    for (GList *item = list; item != NULL; item = item->next)
-        route->boards[i++] = g_slice_copy(end->size,
+    int i = -1;
+    for (GList *item = list; item != NULL; item = item->next) {
+        route->boards[++i] = g_slice_copy(end->size,
             ((snps_state_t *) item->data)->board);
+
+        if (item->next == NULL)
+            continue;
+
+        snps_state_t *from = (snps_state_t *) item->data;
+        snps_state_t *to = (snps_state_t *) item->next->data;
+
+        int from_p = 0;
+        while (from->board[from_p] != 0)
+            ++from_p;
+
+        int to_p = 0;
+        while (to->board[to_p] != 0)
+            ++to_p;
+
+        int from_p_row = TRANSLATE_1D_TO_ROW(from_p, game->columns);
+        int from_p_column = TRANSLATE_1D_TO_COLUMN(from_p, game->columns);
+        int to_p_row = TRANSLATE_1D_TO_ROW(to_p, game->columns);
+        int to_p_column = TRANSLATE_1D_TO_COLUMN(to_p, game->columns);
+        
+        if (from_p_row > to_p_row)
+            route->moves[i] = 'U';
+        else if (from_p_row < to_p_row)
+            route->moves[i] = 'D';
+        else if (from_p_column > to_p_column)
+            route->moves[i] = 'L';
+        else
+            route->moves[i] = 'R';
+    }
 
     g_list_free(list);
 
