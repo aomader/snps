@@ -59,10 +59,6 @@ static snps_route_t *snps_route_new(snps_state_t *end, snps_game_t *game);
 extern snps_game_t *snps_game_new(unsigned rows, unsigned columns,
     const unsigned char *from, const unsigned char *to)
 {
-    g_assert(rows > 0 && columns > 0);
-    g_assert(rows * columns <= UCHAR_MAX);
-    g_assert(from != NULL && to != NULL);
-
     snps_game_t *game = g_slice_new(snps_game_t);
     game->rows = rows;
     game->columns = columns;
@@ -100,8 +96,6 @@ extern int snps_game_solvable(snps_game_t *game)
 
 extern void snps_game_free(snps_game_t *game)
 {
-    g_assert(game != NULL);
-
     g_slice_free1(game->size, game->from);
     g_slice_free1(game->size, game->to);
     g_slice_free(snps_game_t, game);
@@ -207,11 +201,6 @@ static snps_state_t *snps_game_start(snps_game_t *game, GHashTable *state_set)
 static void snps_state_children_list(snps_state_t *parent,
     snps_game_t *game, GHashTable *state_set, GList **list)
 {
-    g_assert(parent != NULL);
-    g_assert(game != NULL);
-    g_assert(state_set != NULL);
-    g_assert(list != NULL);
-
     snps_state_t *children[4] = {NULL, NULL, NULL, NULL};
     snps_state_children(parent, game, state_set, children);
 
@@ -224,11 +213,6 @@ static void snps_state_children_list(snps_state_t *parent,
 static void snps_state_children_sequence(snps_state_t *parent,
     snps_game_t *game, GHashTable *state_set, GSequence *todo)
 {
-    g_assert(parent != NULL);
-    g_assert(game != NULL);
-    g_assert(state_set != NULL);
-    g_assert(todo != NULL);
-
     snps_state_t *children[4] = {NULL, NULL, NULL, NULL};
     snps_state_children(parent, game, state_set, children);
 
@@ -242,11 +226,6 @@ static void snps_state_children_sequence(snps_state_t *parent,
 static void snps_state_children(snps_state_t *parent, snps_game_t *game,
     GHashTable *state_set, snps_state_t **ret)
 {
-    g_assert(parent != NULL);
-    g_assert(game != NULL);
-    g_assert(state_set != NULL);
-    g_assert(ret != NULL);
-
     int p = 0;
     while (parent->board[p] != 0)
         ++p;
@@ -272,12 +251,6 @@ static void snps_state_children(snps_state_t *parent, snps_game_t *game,
 static snps_state_t *snps_state_move(snps_state_t *parent, snps_game_t *game,
     GHashTable *state_set, unsigned char p1, unsigned char p2)
 {
-    g_assert(parent != NULL);
-    g_assert(state_set != NULL);
-    g_assert(p1 >= 0 && p1 < parent->size);
-    g_assert(p2 >= 0 && p2 < parent->size);
-
-
     unsigned char board[parent->size];
     memcpy(board, parent->board, parent->size);
     board[p1] = board[p2];
@@ -331,8 +304,6 @@ static unsigned snps_state_score(snps_state_t *state, snps_game_t *game)
 /* creates a pseudo hash of a board using the SDBM algorithm */
 static guint snps_state_hash(gconstpointer a)
 {
-    g_assert(a != NULL);
-
     guint hash = 0;
     snps_state_t *state = (snps_state_t *) a;
 
@@ -345,8 +316,6 @@ static guint snps_state_hash(gconstpointer a)
 /* compare two boards on equality */
 static gboolean snps_state_equals(gconstpointer a, gconstpointer b)
 {
-    g_assert(a != NULL && b != NULL);
-
     snps_state_t *state_a = (snps_state_t *) a;
     snps_state_t *state_b = (snps_state_t *) b;
 
@@ -360,8 +329,6 @@ static gboolean snps_state_equals(gconstpointer a, gconstpointer b)
 static gint snps_state_compare(gconstpointer a, gconstpointer b,
     gpointer user_data)
 {
-    g_assert(a != NULL && b != NULL);
-
     snps_state_t *state_a = (snps_state_t *) a;
     snps_state_t *state_b = (snps_state_t *) b;
 
