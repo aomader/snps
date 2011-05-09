@@ -178,7 +178,8 @@ extern void snps_route_free(snps_route_t *route)
 {
     for (int i = 0; i < route->length; ++i)
         g_slice_free1(route->size, route->boards[i]);
-    g_slice_free1(route->length, route->boards);
+    g_slice_free1(route->length * sizeof(char *), route->boards);
+    g_slice_free1(route->length, route->moves);
     g_slice_free(snps_route_t, route);
 }
 
