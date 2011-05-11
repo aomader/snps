@@ -34,8 +34,7 @@ typedef struct state {
     struct state *parent;
     unsigned char *board;
     unsigned char size;
-    unsigned level;
-    unsigned score;
+    unsigned g, h, f;
 } snps_state_t;
 
 /* prototypes */
@@ -48,7 +47,7 @@ static void snps_state_children(snps_state_t *parent, snps_game_t *game,
     GHashTable *state_set, snps_state_t **ret);
 static snps_state_t *snps_state_move(snps_state_t *parent, snps_game_t *game,
     GHashTable *state_set, unsigned char p1, unsigned char p2);
-static unsigned snps_state_score(snps_state_t *state, snps_game_t *game);
+static unsigned snps_state_heuristic(snps_state_t *state, snps_game_t *game);
 static guint snps_state_hash(gconstpointer a);
 static gboolean snps_state_equals(gconstpointer a, gconstpointer b);
 static gint snps_state_compare(gconstpointer a, gconstpointer b,
@@ -93,7 +92,7 @@ extern snps_route_t *snps_solve_optimal(snps_game_t *game, snps_stats_f stats)
             snps_state_t *current = (snps_state_t *) item->data;
 
             if (stats != NULL)
-                stats(++compared, expanded, current->level);
+                stats(++compared, expanded, current->g);
 
             if (memcmp(current->board, game->to, game->size) == 0) {
                 snps_route_t *route = snps_route_new(current, game);
@@ -133,7 +132,7 @@ extern snps_route_t *snps_solve_fast(snps_game_t *game, snps_stats_f stats)
         g_sequence_remove(first);
 
         if (stats != NULL);
-            stats(++compared, expanded, current->level);
+            stats(++compared, expanded, current->g);
 
         if (memcmp(current->board, game->to, game->size) == 0) {
             snps_route_t *route = snps_route_new(current, game);
@@ -165,8 +164,7 @@ static snps_state_t *snps_game_start(snps_game_t *game, GHashTable *state_set)
     start->parent = NULL;
     start->size = game->size;
     start->board = g_slice_copy(game->size, game->from);
-    start->level = 0;
-    start->score = 0;
+    start->g = start->h = start->f = 0;
 
     g_hash_table_insert(state_set, start, start);
 
@@ -256,8 +254,9 @@ static snps_state_t *snps_state_move(snps_state_t *parent, snps_game_t *game,
     state->parent = parent;
     state->size = parent->size;
     state->board = g_slice_copy(parent->size, board);
-    state->level = parent->level + 1;
-    state->score = snps_state_score(state, game);
+    state->g = parent->g + 1;
+    state->h = snps_state_heuristic(state, game);
+    state->f = state->g + 2 * state->h;
 
     g_hash_table_insert(state_set, state, state);
 
@@ -265,9 +264,9 @@ static snps_state_t *snps_state_move(snps_state_t *parent, snps_game_t *game,
 }
 
 /* a simple heuristic to rate a state */
-static unsigned snps_state_score(snps_state_t *state, snps_game_t *game)
+static unsigned snps_state_heuristic(snps_state_t *state, snps_game_t *game)
 {
-    unsigned score = 0;
+    unsigned h = 0;
     unsigned i_current, diff_columns, diff_rows;
 
     for (int i = 0; i < game->size; ++i) {
@@ -283,10 +282,10 @@ static unsigned snps_state_score(snps_state_t *state, snps_game_t *game)
         diff_rows = abs(TRANSLATE_1D_TO_ROW(i, game->columns) - 
             TRANSLATE_1D_TO_ROW(i_current, game->columns));
         
-        score += (diff_rows + diff_columns);
+        h += diff_rows + diff_columns;
     }
 
-    return (score * 2) + state->level;
+    return h;
 }
 
 /* creates a pseudo hash of a board using the SDBM algorithm */
@@ -320,9 +319,9 @@ static gint snps_state_compare(gconstpointer a, gconstpointer b,
     snps_state_t *state_a = (snps_state_t *) a;
     snps_state_t *state_b = (snps_state_t *) b;
 
-    if (state_a->score > state_b->score)
+    if (state_a->f > state_b->f)
         return 1;
-    if (state_a->score < state_b->score)
+    if (state_a->f < state_b->f)
         return -1;
 
     return 0;
