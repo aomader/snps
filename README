@@ -1,0 +1,33 @@
+General Information
+===================
+
+snps or sliding number puzzles solver is a simple yet powerful library
+providing key functions to reason about and to solve sliding number puzzle
+like the 8 puzzle.
+
+snps is free software released under the MIT License, see the file "LICENSE"
+for more information.
+
+Requirements
+============
+
+snps requires a standard C library and GLib [1]. It requires also an
+ANSI c99 capable compiler like GCC [2] and the SCons2 build system [3].
+
+  [1] http://www.gtk.org/
+  [2] http://gcc.gnu.org
+  [3] http://scons.org/
+
+Installation
+============
+
+To build snps you simple have to run the following commands in the main
+directory containing the SConstruct file.
+
+  $ scons
+
+To test the library you may run one or more of the following commands.
+
+  $ ./demo1
+  $ ./demo2 < data/demo2.in
+
