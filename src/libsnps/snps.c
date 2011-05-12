@@ -82,6 +82,7 @@ extern snps_route_t *snps_solve_optimal(snps_game_t *game, snps_stats_f stats)
     GList *level = NULL, *next_level = NULL;
 
     snps_state_t *start = snps_game_start(game, state_set);
+    snps_route_t *route = NULL;
     level = g_list_prepend(level, start);
 
     int compared = 0;
@@ -95,13 +96,8 @@ extern snps_route_t *snps_solve_optimal(snps_game_t *game, snps_stats_f stats)
                 stats(++compared, expanded, current->g);
 
             if (memcmp(current->board, game->to, game->size) == 0) {
-                snps_route_t *route = snps_route_new(current, game);
-
-                g_list_free(level);
-                g_list_free(next_level);
-                g_hash_table_destroy(state_set);
-
-                return route;
+                route = snps_route_new(current, game);
+                break;
             }
 
             expanded += snps_state_children_list(current, game, state_set,
@@ -111,7 +107,16 @@ extern snps_route_t *snps_solve_optimal(snps_game_t *game, snps_stats_f stats)
         g_list_free(level);
         level = next_level;
         next_level = NULL;
+
+        if (level == NULL || route != NULL)
+            break;
     }
+    
+    g_hash_table_destroy(state_set);
+    g_list_free(level);
+    g_list_free(next_level);
+
+    return route;
 }
 
 extern snps_route_t *snps_solve_fast(snps_game_t *game, snps_stats_f stats)
@@ -121,6 +126,7 @@ extern snps_route_t *snps_solve_fast(snps_game_t *game, snps_stats_f stats)
     GSequence *todo = g_sequence_new(NULL);
 
     snps_state_t *start = snps_game_start(game, state_set);
+    snps_route_t *route = NULL;
     g_sequence_insert_sorted(todo, start, snps_state_compare, NULL);
 
     int compared = 0;
@@ -128,6 +134,10 @@ extern snps_route_t *snps_solve_fast(snps_game_t *game, snps_stats_f stats)
 
     while (42) {
         GSequenceIter *first = g_sequence_get_begin_iter(todo);
+        
+        if (g_sequence_iter_is_end(first) == TRUE)
+            break;
+
         snps_state_t *current = g_sequence_get(first);
         g_sequence_remove(first);
 
@@ -135,17 +145,18 @@ extern snps_route_t *snps_solve_fast(snps_game_t *game, snps_stats_f stats)
             stats(++compared, expanded, current->g);
 
         if (memcmp(current->board, game->to, game->size) == 0) {
-            snps_route_t *route = snps_route_new(current, game);
-
-            g_sequence_free(todo);
-            g_hash_table_destroy(state_set);
-
-            return route;
+            route = snps_route_new(current, game);
+            break;
         }
 
         expanded += snps_state_children_sequence(current, game, state_set,
             todo);
     }
+
+    g_sequence_free(todo);
+    g_hash_table_destroy(state_set);
+
+    return route;
 }
 
 extern void snps_route_free(snps_route_t *route)

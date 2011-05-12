@@ -98,7 +98,7 @@ int main(int argc, char *argv[])
     gettimeofday(&te, NULL);
 
     if (route == NULL) {
-        printf("Game not solvable!\n");
+        printf("\n\nGame not solvable!\n");
     } else {
         float diff = (float) (te.tv_sec - ts.tv_sec) +
             (te.tv_usec - ts.tv_usec) / 1000000.0;
